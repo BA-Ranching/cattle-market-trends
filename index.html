@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Texas Livestock Market Trends</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green-dark: #1a3d1f; --green-mid: #2d6a35; --green-light: #4a9b55;
+      --gold: #c8991a; --gold-light: #f0bf40;
+      --bg: #f4f1eb; --card: #ffffff; --text: #1e1e1e; --text-muted: #6b6b6b;
+      --border: #ddd6c8; --red: #b83232; --blue: #2563a8;
+      --radius: 10px; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Header */
+    header { background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%); color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; min-height: 68px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand .icon { font-size: 28px; }
+    header h1 { font-size: 1.25rem; font-weight: 700; line-height: 1.2; }
+    header h1 span { display: block; font-size: 0.75rem; font-weight: 400; opacity: 0.8; }
+    .header-meta { font-size: 0.78rem; opacity: 0.85; text-align: right; }
+    .header-meta strong { color: var(--gold-light); }
+    .demo-badge { background: var(--gold); color: var(--green-dark); font-size: 0.68rem; font-weight: 800; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle; margin-left: 8px; }
+
+    /* Nav */
+    nav { background: var(--green-dark); border-bottom: 3px solid var(--gold); display: flex; gap: 2px; padding: 0 24px; overflow-x: auto; }
+    nav button { background: transparent; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 0.88rem; font-weight: 600; padding: 12px 20px; white-space: nowrap; border-bottom: 3px solid transparent; margin-bottom: -3px; transition: color 0.2s, border-color 0.2s; }
+    nav button:hover { color: white; }
+    nav button.active { color: var(--gold-light); border-bottom-color: var(--gold-light); }
+
+    /* Layout */
+    .main-layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 105px); }
+
+    /* Sidebar */
+    aside { background: white; border-right: 1px solid var(--border); padding: 20px 16px; overflow-y: auto; }
+    aside h3 { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .filter-group { margin-bottom: 18px; }
+    .filter-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; }
+    .filter-group select { width: 100%; padding: 7px 28px 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; background: var(--bg); color: var(--text); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6b6b' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+    .filter-group select:focus { outline: 2px solid var(--green-light); }
+    .btn-reset { width: 100%; padding: 9px; background: var(--green-mid); color: white; border: none; border-radius: 6px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 4px; }
+    .btn-reset:hover { background: var(--green-dark); }
+    .data-source { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+    .data-source a { color: var(--green-mid); }
+
+    /* Content */
+    main { padding: 24px; overflow-y: auto; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Stat Cards */
+    .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; border-left: 4px solid var(--green-light); }
+    .stat-card.gold { border-left-color: var(--gold); }
+    .stat-card.red  { border-left-color: var(--red); }
+    .stat-card.blue { border-left-color: var(--blue); }
+    .stat-card .label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 6px; }
+    .stat-card .value { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+    .stat-card .sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+    .stat-card .change { font-size: 0.78rem; font-weight: 600; margin-top: 4px; }
+    .change.up { color: #22863a; } .change.down { color: var(--red); }
+
+    /* Chart Cards */
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; margin-bottom: 24px; }
+    .chart-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 24px; }
+    .chart-card h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .chart-card .chart-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 16px; }
+    .chart-wrap { position: relative; height: 260px; }
+    .chart-wrap.tall { height: 300px; }
+
+    /* Table */
+    .table-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .table-header h2 { font-size: 0.95rem; font-weight: 700; }
+    .table-search { padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; width: 220px; }
+    .table-search:focus { outline: 2px solid var(--green-light); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead th { background: var(--bg); padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); white-space: nowrap; cursor: pointer; border-bottom: 2px solid var(--border); user-select: none; }
+    thead th:hover { color: var(--green-mid); }
+    thead th::after { content: " ↕"; opacity: 0.4; }
+    thead th.asc::after { content: " ↑"; opacity: 1; color: var(--green-mid); }
+    thead th.desc::after { content: " ↓"; opacity: 1; color: var(--green-mid); }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: #f9f7f3; }
+    tbody td { padding: 9px 14px; white-space: nowrap; }
+    .price-cell { font-weight: 700; color: var(--green-dark); }
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid var(--border); font-size: 0.82rem; color: var(--text-muted); flex-wrap: wrap; gap: 8px; }
+    .pages { display: flex; gap: 4px; }
+    .page-btn { padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px; background: white; cursor: pointer; font-size: 0.8rem; }
+    .page-btn.active { background: var(--green-mid); color: white; border-color: var(--green-mid); }
+    .page-btn:hover:not(.active) { background: var(--bg); }
+
+    /* Loading */
+    .loading-overlay { position: fixed; inset: 0; background: rgba(26,61,31,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; color: white; gap: 16px; }
+    .spinner { width: 48px; height: 48px; border: 5px solid rgba(255,255,255,0.2); border-top-color: var(--gold-light); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay p { font-size: 1rem; opacity: 0.9; }
+    .error-banner { background: #fef2f2; border: 1px solid #fca5a5; border-radius: var(--radius); padding: 16px 20px; color: var(--red); margin-bottom: 20px; display: none; }
+    .demo-notice { background: #fffbeb; border: 1px solid var(--gold); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; font-size: 0.83rem; color: #92400e; display: none; }
+    .demo-notice strong { color: #78350f; }
+
+    /* About Tab */
+    .about-page { max-width: 860px; }
+    .about-hero { background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%); color: white; border-radius: var(--radius); padding: 28px 32px; margin-bottom: 24px; }
+    .about-hero h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+    .about-hero p { font-size: 0.9rem; opacity: 0.88; line-height: 1.6; }
+    .about-section { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px 28px; margin-bottom: 20px; }
+    .about-section h3 { font-size: 1rem; font-weight: 700; color: var(--green-dark); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .about-section p { font-size: 0.88rem; line-height: 1.7; color: var(--text); margin-bottom: 12px; }
+    .about-section p:last-child { margin-bottom: 0; }
+    .about-section ul { margin: 0 0 12px 0; padding-left: 20px; }
+    .about-section ul li { font-size: 0.88rem; line-height: 1.7; color: var(--text); margin-bottom: 6px; }
+    .about-section ul li:last-child { margin-bottom: 0; }
+    .about-callout { background: #fffbeb; border: 1px solid var(--gold); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+    .about-callout p { font-size: 0.85rem; color: #78350f; margin: 0; line-height: 1.6; }
+    .about-callout strong { color: #92400e; }
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+    .about-compare-box { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+    .about-compare-box h4 { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .about-compare-box.green h4 { color: var(--green-mid); border-color: var(--green-light); }
+    .about-compare-box.gold h4 { color: #92400e; border-color: var(--gold); }
+    .about-compare-box ul { padding-left: 16px; margin: 0; }
+    .about-compare-box ul li { font-size: 0.83rem; line-height: 1.65; color: var(--text); margin-bottom: 5px; }
+    .about-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+    .about-badge.green { background: #dcfce7; color: #166534; }
+    .about-badge.gold { background: #fef3c7; color: #92400e; }
+    .about-badge.blue { background: #dbeafe; color: #1e40af; }
+    .about-link { color: var(--green-mid); text-decoration: none; font-weight: 600; }
+    .about-link:hover { text-decoration: underline; }
+    .about-example-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 12px; }
+    .about-example-table th { background: var(--bg); padding: 8px 12px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 2px solid var(--border); }
+    .about-example-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .about-example-table tr:last-child td { border-bottom: none; }
+    .about-example-table td.match { color: #166534; font-weight: 600; }
+    .about-example-table td.diff { color: var(--red); font-weight: 600; }
+
+    @media (max-width: 768px) {
+      .about-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .main-layout { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+      .chart-grid { grid-template-columns: 1fr; }
+      main { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>Loading market data…</p>
+</div>
+
+<header>
+  <div class="brand">
+    <span class="icon">🐄</span>
+    <h1>Texas Livestock Market Trends <span id="demoBadgeSpan"></span>
+      <span>USDA Market News · Updated Daily</span>
+    </h1>
+  </div>
+  <div class="header-meta" id="headerMeta">Loading…</div>
+</header>
+
+<nav id="mainNav">
+  <button class="active" data-tab="overview">Overview</button>
+  <button data-tab="trends">Price Trends</button>
+  <button data-tab="markets">Market Comparison</button>
+  <button data-tab="weight">Weight Brackets</button>
+  <button data-tab="sheep">Sheep &amp; Goats</button>
+  <button data-tab="rawdata">Raw Data</button>
+  <button data-tab="about">About This Data</button>
+</nav>
+
+<div class="main-layout">
+  <aside>
+    <h3>Filters</h3>
+    <div class="filter-group">
+      <label for="fDateRange">Date Range</label>
+      <select id="fDateRange">
+        <option value="13">Last 3 months</option>
+        <option value="26" selected>Last 6 months</option>
+        <option value="52">Last 12 months</option>
+      </select>
+    </div>
+    <button class="btn-reset" id="btnReset">Reset Filters</button>
+    <div class="data-source">
+      <h3 style="margin-bottom:8px">Data Source</h3>
+      USDA Agricultural Marketing Service<br>Market News Division<br><br>
+      <a href="https://mymarketnews.ams.usda.gov" target="_blank" rel="noopener">mymarketnews.ams.usda.gov</a><br><br>
+      Updated weekday evenings via<br>GitHub Actions.
+    </div>
+  </aside>
+
+  <main>
+    <div class="error-banner" id="errorBanner">
+      ⚠️ <strong>Data files not found.</strong> Run <code>python generate_demo_data.py</code> or <code>python fetch_data.py</code> to generate the data files, then serve this folder with a local web server.
+    </div>
+    <div class="demo-notice" id="demoNotice">
+      📊 <strong>Demo mode:</strong> Showing synthetic data that matches real USDA market structure and price ranges.
+      Run <code>python fetch_data.py</code> on your computer to load real market data.
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="tab-overview">
+      <div class="stat-cards" id="statCards"></div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Feeder Cattle — Weekly Avg Price</h2>
+          <p class="chart-sub">$/cwt across all Texas auction markets</p>
+          <div class="chart-wrap"><canvas id="cFeederTrend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Feeder Cattle by Class — Latest Week</h2>
+          <p class="chart-sub">Avg $/cwt by class</p>
+          <div class="chart-wrap"><canvas id="cClassBar"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Slaughter Cattle — Weekly Avg Price</h2>
+          <p class="chart-sub">$/cwt across all Texas auction markets</p>
+          <div class="chart-wrap"><canvas id="cSlaughterTrend2"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Replacement Cattle — Weekly Avg Price</h2>
+          <p class="chart-sub">$/head across all Texas auction markets</p>
+          <div class="chart-wrap"><canvas id="cReplaceTrend2"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Weekly Head Count</h2>
+          <p class="chart-sub">Total head reported across Texas markets</p>
+          <div class="chart-wrap"><canvas id="cReceipts"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRENDS -->
+    <div class="tab-panel" id="tab-trends">
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Feeder Cattle — Price Trend</h2>
+          <p class="chart-sub">Weekly avg $/cwt · all TX markets</p>
+          <div class="chart-wrap"><canvas id="cFeederTrend2"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Replacement Cattle — Price Trend</h2>
+          <p class="chart-sub">Weekly avg $/head · bred cows &amp; heifers</p>
+          <div class="chart-wrap"><canvas id="cReplaceTrend"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Slaughter Cattle — Price Trend</h2>
+          <p class="chart-sub">Weekly avg $/cwt · cows &amp; bulls</p>
+          <div class="chart-wrap"><canvas id="cSlaughterTrend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Steers vs Heifers — Price Spread</h2>
+          <p class="chart-sub">Premium steers carry over heifers ($/cwt)</p>
+          <div class="chart-wrap"><canvas id="cSpread"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MARKETS -->
+    <div class="tab-panel" id="tab-markets">
+      <div class="filter-row" style="margin-bottom:1rem;">
+        <label for="mktCommodity" style="font-weight:600;margin-right:.5rem;">Livestock Category:</label>
+        <select id="mktCommodity" onchange="onMarketCommodityChange()" style="padding:.35rem .7rem;border-radius:6px;border:1px solid #ccc;font-size:.95rem;">
+          <option value="Feeder Cattle">Feeder Cattle</option>
+          <option value="Slaughter Cattle">Slaughter Cattle</option>
+          <option value="Replacement Cattle">Replacement Cattle</option>
+        </select>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Avg Price by Market — Latest Week</h2>
+          <p class="chart-sub" id="mktBarSub">Feeder Cattle $/cwt</p>
+          <div class="chart-wrap"><canvas id="cMarketBar"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Head Count by Market — Latest Week</h2>
+          <p class="chart-sub">Total receipts</p>
+          <div class="chart-wrap"><canvas id="cMarketVolume"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Market Price Trends</h2>
+          <p class="chart-sub" id="mktTrendSub">Weekly avg Feeder Cattle price per market</p>
+          <div class="chart-wrap tall"><canvas id="cMarketTrends"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Market Volume Trends</h2>
+          <p class="chart-sub">Weekly head count per market</p>
+          <div class="chart-wrap tall"><canvas id="cMarketVolTrend"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WEIGHT BRACKETS -->
+    <div class="tab-panel" id="tab-weight">
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Feeder Steers — Price by Weight Bracket</h2>
+          <p class="chart-sub">Top 8 weight brackets by volume ($/cwt over time)</p>
+          <div class="chart-wrap tall"><canvas id="cSteerBrackets"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Feeder Heifers — Price by Weight Bracket</h2>
+          <p class="chart-sub">Top 8 weight brackets by volume ($/cwt over time)</p>
+          <div class="chart-wrap tall"><canvas id="cHeiferBrackets"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Steer Weight Brackets — Latest Week</h2>
+          <p class="chart-sub">Inverse price curve: lighter = higher $/cwt</p>
+          <div class="chart-wrap"><canvas id="cSteerBracketBar"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Heifer Weight Brackets — Latest Week</h2>
+          <p class="chart-sub">$/cwt by weight bracket, latest reporting week</p>
+          <div class="chart-wrap"><canvas id="cHeiferBracketBar"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHEEP & GOATS -->
+    <div class="tab-panel" id="tab-sheep">
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Sheep &amp; Goat Prices — San Angelo</h2>
+          <p class="chart-sub">Avg $/cwt by commodity over time</p>
+          <div class="chart-wrap tall"><canvas id="cSheepTrend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Goat Classes — Latest Week</h2>
+          <p class="chart-sub">Avg $/cwt by class</p>
+          <div class="chart-wrap"><canvas id="cGoatClass"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h2>Sheep &amp; Lamb Classes — Latest Week</h2>
+          <p class="chart-sub">Avg $/cwt by class</p>
+          <div class="chart-wrap"><canvas id="cSheepClass"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Sheep &amp; Goat Volume</h2>
+          <p class="chart-sub">Head count by commodity over time</p>
+          <div class="chart-wrap"><canvas id="cSheepVolume"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABOUT THIS DATA -->
+    <div class="tab-panel" id="tab-about">
+      <div class="about-page">
+
+        <div class="about-hero">
+          <h2>📋 About This Data — What It Shows &amp; Where It Comes From</h2>
+          <p>This dashboard pulls structured price data directly from the USDA Agricultural Marketing Service (AMS) MARS API. Understanding how that data is collected, structured, and aggregated will help you interpret the numbers accurately — especially when comparing this dashboard to the official USDA PDF reports.</p>
+        </div>
+
+        <!-- DATA SOURCE -->
+        <div class="about-section">
+          <h3>🏛️ Data Source</h3>
+          <p>All market data originates from the <strong>USDA AMS Market News Division</strong> and is accessed via the MARS API (<a class="about-link" href="https://marsapi.ams.usda.gov" target="_blank" rel="noopener">marsapi.ams.usda.gov</a>). The same underlying information appears in the human-readable PDF reports published at <a class="about-link" href="https://mymarketnews.ams.usda.gov" target="_blank" rel="noopener">mymarketnews.ams.usda.gov</a>.</p>
+          <p>Data is fetched automatically each weekday evening via a scheduled GitHub Actions workflow and cached as static JSON files. USDA typically publishes auction results the same day the sale concludes, so data is generally current within 24 hours of each auction.</p>
+          <p>Texas auction markets tracked by this dashboard:</p>
+          <ul>
+            <li>Producers Livestock Auction — <strong>San Angelo, TX</strong></li>
+            <li>Texas Cattle Exchange — <strong>Dalhart, TX</strong></li>
+            <li>Tulia Livestock Auction — <strong>Tulia, TX</strong></li>
+            <li>Wildorado Livestock Auction — <strong>Wildorado, TX</strong></li>
+            <li>Giddings Livestock Commission — <strong>Giddings, TX</strong></li>
+            <li>Superior Livestock Auction — <strong>Fort Worth, TX</strong></li>
+            <li>LiveAg Auction — <strong>Fort Worth, TX</strong></li>
+          </ul>
+        </div>
+
+        <!-- HOW THE API WORKS -->
+        <div class="about-section">
+          <h3>⚙️ How the USDA MARS API Structures Its Data</h3>
+          <p>The MARS API is designed specifically for <em>price discovery</em> — helping buyers and sellers understand what cattle of a given type and weight sold for. To do that reliably, it organizes data by standardized categories:</p>
+          <ul>
+            <li><strong>Commodity</strong> — Feeder Cattle, Slaughter Cattle, or Replacement Cattle</li>
+            <li><strong>Class</strong> — Steers, Heifers, Bulls, Cows, Bred Cows, etc.</li>
+            <li><strong>Weight bracket</strong> — e.g., 300–400 lbs, 400–500 lbs, and so on</li>
+            <li><strong>Frame grade</strong> — Primarily <em>Medium and Large 1</em> (M&amp;L1), which is the predominant commercial grade</li>
+          </ul>
+          <p>Each row in the API represents a specific commodity/class/weight-bracket combination with an average price ($/cwt or $/head) and head count for that grouping. This is exactly what drives every chart and table in this dashboard.</p>
+          <div class="about-callout">
+            <p><strong>Key limitation:</strong> The API focuses on M&amp;L1 frame cattle — the most common and widely-traded grade. Lower frame grades (M&amp;L 1-2, Small &amp; Large, etc.) are present in the auction PDF but are <em>not always included</em> as separate API rows. This means the API head counts will generally be lower than the PDF's "Total Receipts" figure.</p>
+          </div>
+        </div>
+
+        <!-- WHY NUMBERS DIFFER FROM PDF -->
+        <div class="about-section">
+          <h3>📄 Why Dashboard Numbers May Differ from the USDA PDF Reports</h3>
+          <p>There are three distinct reasons the numbers in this dashboard may not exactly match the official USDA PDF report for a given auction:</p>
+
+          <p><strong>1. Frame grade filtering</strong><br>
+          The PDF reports cattle by every recognized USDA frame grade. For example, a typical San Angelo report will show separate tables for "Steers — Medium and Large 1" and "Steers — Medium and Large 1-2." The API structured data primarily returns M&amp;L1 rows. The M&amp;L 1-2 cattle — typically a smaller, somewhat lower-quality frame — run through the same ring but are not consistently represented in the API's machine-readable rows. The head count difference for those animals does not appear in this dashboard.</p>
+
+          <p><strong>2. Unsold &amp; passed cattle</strong><br>
+          Auctioneers track every animal run through the ring for the day's "Total Receipts" figure, including cattle that were <em>passed</em> (did not reach the minimum bid) or were <em>withdrawn</em> before sale. Since these animals have no transaction price, the API's price-reporting system has nothing to record. They are counted in the PDF's total receipts line but are invisible to this dashboard.</p>
+
+          <p><strong>3. Commodity filter on the Market Comparison tab</strong><br>
+          The Market Comparison tab has a "Livestock Category" dropdown that filters to one commodity at a time (Feeder Cattle, Slaughter Cattle, or Replacement Cattle). Head counts shown on that tab reflect only the selected commodity — <em>not all cattle at the auction</em>. This is by design, to allow apples-to-apples market comparisons, but it means the number will always be smaller than total receipts.</p>
+
+          <div class="about-callout">
+            <p><strong>Real-world example — San Angelo, April 2, 2026:</strong> The PDF reports "Total Receipts: 373" (307 Feeder + 62 Slaughter + 4 Replacement). The MARS API returns 305 total head across all commodities. The Market Comparison tab (filtered to Feeder Cattle) shows 266 head. All three figures are technically correct — they simply count different things.</p>
+          </div>
+
+          <div class="about-grid">
+            <div class="about-compare-box green">
+              <h4>✅ What This Dashboard Shows</h4>
+              <ul>
+                <li>M&amp;L1 frame cattle only</li>
+                <li>Sold cattle with recorded prices</li>
+                <li>One commodity at a time (Market Comparison tab)</li>
+                <li>Weighted average prices by bracket</li>
+                <li>Consistent, comparable data across all markets</li>
+              </ul>
+            </div>
+            <div class="about-compare-box gold">
+              <h4>📋 What the PDF "Total Receipts" Shows</h4>
+              <ul>
+                <li>All frame grades (M&amp;L1, M&amp;L 1-2, Small, etc.)</li>
+                <li>Sold, unsold, and passed cattle</li>
+                <li>All commodities combined in one total</li>
+                <li>Individual lot-level detail</li>
+                <li>Human-readable narrative notes</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- HEAD COUNT TABLE EXAMPLE -->
+        <div class="about-section">
+          <h3>🔢 Head Count Reference — What Each Number Represents</h3>
+          <table class="about-example-table">
+            <thead>
+              <tr>
+                <th>Where You See It</th>
+                <th>What It Counts</th>
+                <th>Includes All Grades?</th>
+                <th>Includes Unsold?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>PDF — Total Receipts</strong></td>
+                <td>Every animal through the ring, all commodities</td>
+                <td class="match">Yes</td>
+                <td class="match">Yes</td>
+              </tr>
+              <tr>
+                <td><strong>PDF — Feeder Cattle line</strong></td>
+                <td>All feeder cattle (all frames, sold &amp; unsold)</td>
+                <td class="match">Yes</td>
+                <td class="match">Yes</td>
+              </tr>
+              <tr>
+                <td><strong>MARS API total</strong></td>
+                <td>All sold cattle with reported prices, all commodities</td>
+                <td class="diff">M&amp;L1 primary</td>
+                <td class="diff">No</td>
+              </tr>
+              <tr>
+                <td><strong>Overview — Weekly Head Count</strong></td>
+                <td>API total across all commodities &amp; markets</td>
+                <td class="diff">M&amp;L1 primary</td>
+                <td class="diff">No</td>
+              </tr>
+              <tr>
+                <td><strong>Market Comparison — Head Count</strong></td>
+                <td>API data for selected commodity only</td>
+                <td class="diff">M&amp;L1 primary</td>
+                <td class="diff">No</td>
+              </tr>
+              <tr>
+                <td><strong>Stat card — "Head Reported"</strong></td>
+                <td>API total, latest week, all commodities &amp; markets</td>
+                <td class="diff">M&amp;L1 primary</td>
+                <td class="diff">No</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PRICING -->
+        <div class="about-section">
+          <h3>💲 How Prices Are Calculated</h3>
+          <p>All price figures in this dashboard are <strong>weighted average prices</strong> — meaning each lot's price is weighted by its head count before averaging. A lot of 30 steers carries more weight in the average than a lot of 3 steers. This is the same methodology USDA uses in the PDF reports.</p>
+          <p>Prices are expressed as:</p>
+          <ul>
+            <li><strong>$/cwt (dollars per hundredweight)</strong> for Feeder Cattle and Slaughter Cattle — the standard for cattle priced by the pound</li>
+            <li><strong>$/head</strong> for Replacement Cattle (bred cows, replacement heifers) — these are typically sold as breeding animals at a flat per-head price rather than by weight</li>
+          </ul>
+          <p>Weekly averages are computed by grouping all auction dates that fall within the same Sunday-through-Saturday week, then taking the weighted average across all markets and lots in that window. This means a week with a large auction will have greater influence on the weekly average than a week with a small run.</p>
+        </div>
+
+        <!-- WEEKLY AGGREGATION -->
+        <div class="about-section">
+          <h3>📅 Weekly Aggregation &amp; Date Grouping</h3>
+          <p>USDA auctions at different markets occur on different days throughout the week. To enable fair week-over-week trend comparisons, this dashboard groups all auction dates by the <strong>Sunday that starts that calendar week</strong>. For example, auction sales on Monday through Saturday of the same week are all grouped under the preceding Sunday's date.</p>
+          <p>This means that if two markets both held sales in the same week — one on Wednesday and one on Thursday — they will both appear under the same week label in trend charts, and their prices will be combined into a single weekly average. Weeks with only one market reporting will reflect that market's prices alone.</p>
+          <div class="about-callout">
+            <p><strong>Note:</strong> If a market holds a special sale mid-week outside its normal schedule, that sale will be included in the same weekly bucket as its regular sale. This can occasionally produce a higher-than-normal head count for that week.</p>
+          </div>
+        </div>
+
+        <!-- RELIABILITY -->
+        <div class="about-section">
+          <h3>✅ What This Dashboard Is Reliable For</h3>
+          <p>Despite the limitations above, the data here is highly reliable for its primary purpose — tracking <strong>price trends</strong> and <strong>market comparisons</strong> over time. Because the same subset of cattle (M&amp;L1 frame, sold with reported prices) is captured consistently week after week and market after market, the trend lines are an accurate reflection of how prices are moving.</p>
+          <p>Use this dashboard for:</p>
+          <ul>
+            <li>Monitoring week-over-week price direction for feeder, slaughter, and replacement cattle</li>
+            <li>Comparing price levels across different Texas auction markets</li>
+            <li>Identifying which weight brackets are trading at a premium or discount</li>
+            <li>Understanding seasonal price patterns and year-over-year comparisons</li>
+            <li>Tracking the steer-heifer price spread over time</li>
+          </ul>
+          <p>For official total receipt counts, lot-level detail, or verification of specific transactions, always refer to the official USDA PDF report for that auction, available at <a class="about-link" href="https://mymarketnews.ams.usda.gov" target="_blank" rel="noopener">mymarketnews.ams.usda.gov</a>.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RAW DATA -->
+    <div class="tab-panel" id="tab-rawdata">
+      <div class="table-card">
+        <div class="table-header">
+          <h2>Latest Week — Cattle Auction Detail</h2>
+          <input type="text" class="table-search" id="tableSearch" placeholder="Search commodity, class…" />
+        </div>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <thead><tr>
+              <th data-col="date">Date</th>
+              <th data-col="market">Market</th>
+              <th data-col="commodity">Commodity</th>
+              <th data-col="class">Class</th>
+              <th data-col="weight_bracket">Weight (lbs)</th>
+              <th data-col="avg_price">Avg $/cwt</th>
+              <th data-col="avg_weight">Avg Wt</th>
+              <th data-col="head_count">Head Count</th>
+            </tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  Texas Livestock Market Dashboard
+//  Loads pre-computed JSON from /data/ directory
+// ═══════════════════════════════════════════════════════════════
+
+const COLORS = ['#2d6a35','#c8991a','#2563a8','#b83232','#7c3abd','#e07b39','#1a7a7a','#a0522d'];
+
+const state = {
+  data: {},
+  filters: { weeks: 26 },
+  table: { page:1, perPage:50, sort:'avg_price', dir:'desc', search:'' },
+  charts: {},
+};
+
+// ── Data Loading ───────────────────────────────────────────────
+async function loadAll() {
+  const files = [
+    'manifest','feeder_trend','replacement_trend','slaughter_trend',
+    'weight_bracket_steers','weight_bracket_heifers','class_breakdown',
+    'market_week_prices','cattle_latest','commodity_latest','sheep_compact'
+  ];
+  const results = await Promise.all(
+    files.map(f => fetch(`data/${f}.json?v=${Date.now()}`, {cache:'no-store'})
+      .then(r => { if(!r.ok) throw new Error(f); return r.text(); })
+      .then(t => JSON.parse(t.replace(/\0/g, '')))  // strip null bytes left by Windows file overwrites
+    )
+  );
+  files.forEach((f,i) => state.data[f] = results[i]);
+}
+
+// ── Utilities ──────────────────────────────────────────────────
+function sliceDates(matrix) {
+  const n = state.filters.weeks;
+  const total = matrix.dates.length;
+  const start = Math.max(0, total - n);
+  const dates = matrix.dates.slice(start);
+  const prices = {}, heads = {};
+  const keys = matrix.brackets || matrix.classes || [];
+  keys.forEach(k => {
+    prices[k] = matrix.prices[k].slice(start);
+    if (matrix.heads) heads[k] = matrix.heads[k].slice(start);
+  });
+  return { dates, keys, prices, heads };
+}
+
+function sliceTrend(arr) {
+  return arr.slice(-state.filters.weeks);
+}
+
+function latestNdates(matrix, n=1) {
+  const dates = matrix.dates;
+  return dates.slice(-(n));
+}
+
+function avgOf(arr) {
+  const v = arr.filter(x=>x!=null);
+  return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : null;
+}
+
+// ── Chart Helpers ──────────────────────────────────────────────
+function destroyChart(id) {
+  if (state.charts[id]) { state.charts[id].destroy(); delete state.charts[id]; }
+}
+
+function lineChart(id, labels, datasets, yLabel='$/cwt') {
+  destroyChart(id);
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if (!ctx) return;
+  state.charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: { position:'bottom', labels:{ boxWidth:12, font:{size:10} } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: $${c.parsed.y?.toFixed(2)}` } }
+      },
+      scales: {
+        x: { ticks:{ maxRotation:45, font:{size:9}, maxTicksLimit:12 } },
+        y: { title:{display:true,text:yLabel,font:{size:10}}, ticks:{callback:v=>'$'+v} }
+      }
+    }
+  });
+}
+
+function barChart(id, labels, datasets, horizontal=false, dollarY=true) {
+  destroyChart(id);
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if (!ctx) return;
+  // When horizontal: Y-axis = category labels (no callback), X-axis = values
+  // When vertical:  X-axis = category labels (no callback), Y-axis = values
+  const valTickCb = dollarY ? (v => '$' + v.toLocaleString()) : (v => v.toLocaleString());
+  const catScale = { ticks: { font:{size:9} } };                          // category axis — let Chart.js render labels naturally
+  const valScale = { ticks: { font:{size:9}, callback: valTickCb } };     // value axis — apply $ formatting
+  state.charts[id] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      indexAxis: horizontal ? 'y' : 'x',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: datasets.length > 1, position:'bottom', labels:{boxWidth:12,font:{size:10}} },
+        tooltip: { callbacks: { label: c => { const v=c.parsed[horizontal?'x':'y']; return ` ${c.dataset.label||''}: ${dollarY?'$':''}${v?.toFixed(dollarY?2:0)}`; } } }
+      },
+      scales: {
+        x: horizontal ? valScale : catScale,
+        y: horizontal ? catScale : valScale,
+      }
+    }
+  });
+}
+
+// ── Overview Tab ───────────────────────────────────────────────
+function renderStatCards() {
+  const ft = sliceTrend(state.data.feeder_trend);
+  const latest = ft[ft.length-1];
+  const prev   = ft[ft.length-2];
+  const pct    = prev ? ((latest.avg_price - prev.avg_price)/prev.avg_price*100).toFixed(1) : null;
+
+  const cd = state.data.class_breakdown;
+  const lastIdx = cd.dates.length - 1;
+  const steerP  = cd.prices['Steers']?.[lastIdx];
+  const heiferP = cd.prices['Heifers']?.[lastIdx];
+  const spread  = (steerP && heiferP) ? (steerP - heiferP).toFixed(2) : '—';
+
+  const mwp = state.data.market_week_prices;
+  const latestDate = mwp[mwp.length-1]?.date;
+  const latestMwp  = mwp.filter(r=>r.date===latestDate);
+  const totalHead  = latestMwp.reduce((s,r)=>s+r.head_count,0);
+  const markets    = [...new Set(latestMwp.map(r=>r.market))].length;
+
+  const upDown = pct > 0 ? 'up' : 'down';
+  const arrow  = pct > 0 ? '▲' : '▼';
+
+  document.getElementById('statCards').innerHTML = `
+    <div class="stat-card gold">
+      <div class="label">Feeder Cattle Avg Price</div>
+      <div class="value">$${latest.avg_price.toFixed(2)}</div>
+      <div class="sub">per cwt · latest week</div>
+      ${pct ? `<div class="change ${upDown}">${arrow} ${Math.abs(pct)}% vs prior week</div>` : ''}
+    </div>
+    <div class="stat-card">
+      <div class="label">Steer / Heifer Spread</div>
+      <div class="value">${spread !== '—' ? '$'+spread : '—'}</div>
+      <div class="sub">steer premium over heifers ($/cwt)</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="label">Head Reported</div>
+      <div class="value">${totalHead ? totalHead.toLocaleString() : '—'}</div>
+      <div class="sub">latest week · all TX markets</div>
+    </div>
+    <div class="stat-card red">
+      <div class="label">Active TX Markets</div>
+      <div class="value">${markets || '—'}</div>
+      <div class="sub">reporting this period</div>
+    </div>
+  `;
+}
+
+function renderFeederTrend(id) {
+  const ft = sliceTrend(state.data.feeder_trend);
+  lineChart(id, ft.map(r=>r.date), [{
+    label:'Feeder Cattle Avg $/cwt', data:ft.map(r=>r.avg_price),
+    borderColor:COLORS[0], backgroundColor:COLORS[0]+'22', fill:true, tension:0.3,
+    pointRadius: ft.length>20?2:4,
+  }]);
+}
+
+function renderReceipts() {
+  // Aggregate total head per week across all markets and all commodity types
+  const mwp = state.data.market_week_prices;
+  const byDate = {};
+  mwp.forEach(r => { byDate[r.date] = (byDate[r.date] || 0) + r.head_count; });
+  const allDates = Object.keys(byDate).sort();
+  const dates = allDates.slice(-state.filters.weeks);
+  const head  = dates.map(d => byDate[d]);
+
+  barChart('cReceipts', dates, [{
+    label:'Total Head', data: head,
+    backgroundColor:COLORS[2]+'88', borderColor:COLORS[2], borderWidth:1,
+  }], false, false);
+  if (state.charts['cReceipts']) {
+    state.charts['cReceipts'].options.scales.y.ticks.callback = v => v.toLocaleString();
+    state.charts['cReceipts'].options.scales.y.title.text = 'Head';
+    state.charts['cReceipts'].update();
+  }
+}
+
+
+
+function renderClassBar() {
+  const cd  = state.data.class_breakdown;
+  const idx = cd.dates.length - 1;
+  const cls = cd.classes.filter(c => cd.prices[c]?.[idx] != null);
+  const GREEN = '#2d6a35';
+  barChart('cClassBar', cls, [{
+    label: '$/cwt',
+    data: cls.map(c => cd.prices[c][idx]),
+    backgroundColor: cls.map(() => GREEN + 'cc'),
+    borderColor:     cls.map(() => GREEN),
+    borderWidth: 2,
+  }]);
+}
+
+// ── Trends Tab ─────────────────────────────────────────────────
+function renderReplaceTrend(id='cReplaceTrend') {
+  const ft = sliceTrend(state.data.replacement_trend);
+  lineChart(id, ft.map(r=>r.date), [{
+    label:'Replacement Cattle Avg $/head', data:ft.map(r=>r.avg_price),
+    borderColor:COLORS[1], backgroundColor:COLORS[1]+'22', fill:true, tension:0.3,
+    pointRadius:ft.length>20?2:4,
+  }], '$/head');
+}
+
+function renderSlaughterTrend(id='cSlaughterTrend') {
+  const ft = sliceTrend(state.data.slaughter_trend);
+  lineChart(id, ft.map(r=>r.date), [{
+    label:'Slaughter Cattle Avg $/cwt', data:ft.map(r=>r.avg_price),
+    borderColor:COLORS[3], backgroundColor:COLORS[3]+'22', fill:true, tension:0.3,
+    pointRadius:ft.length>20?2:4,
+  }]);
+}
+
+function renderSpread() {
+  const { dates, prices } = sliceDates(state.data.class_breakdown);
+  const spread = dates.map((_,i) => {
+    const s = prices['Steers']?.[i], h = prices['Heifers']?.[i];
+    return (s&&h) ? +(s-h).toFixed(2) : null;
+  });
+  lineChart('cSpread', dates, [{
+    label:'Steer Premium over Heifers', data:spread,
+    borderColor:COLORS[2], backgroundColor:COLORS[2]+'22', fill:true, tension:0.3,
+    spanGaps:true, pointRadius:dates.length>20?2:4,
+  }], '$/cwt premium');
+}
+
+// ── Markets Tab ────────────────────────────────────────────────
+function getMarketCommodity() {
+  return document.getElementById('mktCommodity')?.value || 'Feeder Cattle';
+}
+
+function onMarketCommodityChange() {
+  renderMarketBars();
+  renderMarketTrends();
+  const comm = getMarketCommodity();
+  const unit = comm === 'Replacement Cattle' ? '$/head' : '$/cwt';
+  document.getElementById('mktBarSub').textContent   = `${comm} ${unit}`;
+  document.getElementById('mktTrendSub').textContent = `Weekly avg ${comm} price per market`;
+}
+
+function mktSlice(comm) {
+  // Filter by commodity, then keep only the last N weeks by date
+  const filtered = state.data.market_week_prices.filter(r => r.commodity === comm);
+  const allDates = [...new Set(filtered.map(r => r.date))].sort();
+  const cutoff   = allDates[Math.max(0, allDates.length - state.filters.weeks)];
+  return filtered.filter(r => r.date >= cutoff);
+}
+
+function renderMarketBars() {
+  const comm = getMarketCommodity();
+  const mwp  = state.data.market_week_prices.filter(r => r.commodity === comm);
+  const dates = [...new Set(mwp.map(r => r.date))].sort();
+  const latestDate = dates[dates.length - 1];
+  const latest = mwp.filter(r => r.date === latestDate);
+  const unit = comm === 'Replacement Cattle' ? '$/head' : '$/cwt';
+  barChart('cMarketBar', latest.map(r=>r.market), [{
+    label:`Avg ${unit}`, data:latest.map(r=>r.avg_price),
+    backgroundColor:latest.map((_,i)=>COLORS[i%COLORS.length]+'cc'),
+    borderColor:latest.map((_,i)=>COLORS[i%COLORS.length]), borderWidth:2,
+  }], true);
+  barChart('cMarketVolume', latest.map(r=>r.market), [{
+    label:'Head Count', data:latest.map(r=>r.head_count),
+    backgroundColor:COLORS[2]+'88', borderColor:COLORS[2], borderWidth:1,
+  }], true, false);
+}
+
+function renderMarketTrends() {
+  const comm    = getMarketCommodity();
+  const raw     = mktSlice(comm);
+  const dates   = [...new Set(raw.map(r=>r.date))].sort();
+  const markets = [...new Set(raw.map(r=>r.market))].sort();
+  // Build lookup for O(1) access
+  const lookup  = {};
+  raw.forEach(r => { lookup[r.date+'|'+r.market] = r; });
+
+  const pDatasets = markets.map((m,i) => ({
+    label:m, data:dates.map(d=>lookup[d+'|'+m]?.avg_price ?? null),
+    borderColor:COLORS[i%COLORS.length], backgroundColor:'transparent', tension:0.3, spanGaps:true, pointRadius:2,
+  }));
+  lineChart('cMarketTrends', dates, pDatasets);
+
+  const vDatasets = markets.map((m,i) => ({
+    label:m, data:dates.map(d=>lookup[d+'|'+m]?.head_count ?? null),
+    borderColor:COLORS[i%COLORS.length], backgroundColor:'transparent', tension:0.3, spanGaps:true, pointRadius:2,
+  }));
+  lineChart('cMarketVolTrend', dates, vDatasets, 'Head');
+  if (state.charts['cMarketVolTrend']) {
+    state.charts['cMarketVolTrend'].options.scales.y.ticks.callback = v=>v.toLocaleString();
+    state.charts['cMarketVolTrend'].options.plugins.tooltip.callbacks.label = c => ` ${c.dataset.label}: ${c.parsed.y?.toLocaleString()}`;
+    state.charts['cMarketVolTrend'].update();
+  }
+}
+
+// ── Weight Brackets Tab ────────────────────────────────────────
+function renderBracketTrends() {
+  ['Steers','Heifers'].forEach((cls,ci) => {
+    const key     = cls==='Steers' ? 'weight_bracket_steers' : 'weight_bracket_heifers';
+    const canLine = cls==='Steers' ? 'cSteerBrackets' : 'cHeiferBrackets';
+    const canBar  = cls==='Steers' ? 'cSteerBracketBar' : 'cHeiferBracketBar';
+    const { dates, keys, prices } = sliceDates(state.data[key]);
+
+    // Line chart: trend over time per bracket
+    const datasets = keys.map((b,i) => ({
+      label:b+' lbs', data:prices[b],
+      borderColor:COLORS[i%COLORS.length], backgroundColor:'transparent',
+      tension:0.3, spanGaps:true, pointRadius:dates.length>20?1:3,
+    }));
+    lineChart(canLine, dates, datasets);
+
+    // Bar chart: latest week snapshot (shows inverse price curve)
+    const lastIdx = dates.length - 1;
+    const latestPrices = keys.map(b => prices[b][lastIdx]);
+    barChart(canBar, keys.map(b=>b+' lbs'), [{
+      label:`${cls} $/cwt`, data:latestPrices,
+      backgroundColor:keys.map((_,i)=>COLORS[i%COLORS.length]+'cc'),
+      borderColor:keys.map((_,i)=>COLORS[i%COLORS.length]), borderWidth:2,
+    }]);
+  });
+}
+
+// ── Sheep & Goats Tab ──────────────────────────────────────────
+function renderSheepCharts() {
+  const weeks   = state.filters.weeks;
+  const allDates= [...new Set(state.data.sheep_compact.map(r=>r.d))].sort();
+  const dates   = allDates.slice(-weeks);
+  const rows    = state.data.sheep_compact.filter(r => dates.includes(r.d));
+
+  // Trend by commodity
+  const commodities = [...new Set(rows.map(r=>r.c))].sort();
+  const trendDS = commodities.map((c,i) => ({
+    label:c,
+    data:dates.map(d=>{ const rs=rows.filter(x=>x.d===d&&x.c===c); return rs.length?+(rs.reduce((s,r)=>s+r.p,0)/rs.length).toFixed(2):null; }),
+    borderColor:COLORS[i%COLORS.length], backgroundColor:'transparent', tension:0.3, spanGaps:true, pointRadius:2,
+  }));
+  lineChart('cSheepTrend', dates, trendDS);
+
+  // Volume trend
+  const volDS = commodities.map((c,i) => ({
+    label:c,
+    data:dates.map(d=>{ const rs=rows.filter(x=>x.d===d&&x.c===c); return rs.reduce((s,r)=>s+r.h,0)||null; }),
+    borderColor:COLORS[i%COLORS.length], backgroundColor:'transparent', tension:0.3, spanGaps:true, pointRadius:2,
+  }));
+  lineChart('cSheepVolume', dates, volDS, 'Head');
+  if(state.charts['cSheepVolume']){
+    state.charts['cSheepVolume'].options.scales.y.ticks.callback=v=>v.toLocaleString();
+    state.charts['cSheepVolume'].options.plugins.tooltip.callbacks.label=c=>` ${c.dataset.label}: ${c.parsed.y?.toLocaleString()}`;
+    state.charts['cSheepVolume'].update();
+  }
+
+  // Latest week: goat classes
+  const latestDate = dates[dates.length-1];
+  const latestRows = rows.filter(r=>r.d===latestDate);
+  const goatRows   = latestRows.filter(r=>r.c.toLowerCase().includes('goat'));
+  const sheepRows  = latestRows.filter(r=>!r.c.toLowerCase().includes('goat'));
+  const goatByClass  = {}; goatRows.forEach(r=>{if(!goatByClass[r.k])goatByClass[r.k]=[];goatByClass[r.k].push(r.p);});
+  const sheepByClass = {}; sheepRows.forEach(r=>{if(!sheepByClass[r.k])sheepByClass[r.k]=[];sheepByClass[r.k].push(r.p);});
+
+  const gKeys = Object.keys(goatByClass), sKeys = Object.keys(sheepByClass);
+  barChart('cGoatClass', gKeys, [{
+    label:'Goat $/cwt', data:gKeys.map(k=>+(goatByClass[k].reduce((a,b)=>a+b,0)/goatByClass[k].length).toFixed(2)),
+    backgroundColor:gKeys.map((_,i)=>COLORS[i%COLORS.length]+'cc'), borderColor:gKeys.map((_,i)=>COLORS[i%COLORS.length]), borderWidth:2,
+  }]);
+  barChart('cSheepClass', sKeys, [{
+    label:'Sheep $/cwt', data:sKeys.map(k=>+(sheepByClass[k].reduce((a,b)=>a+b,0)/sheepByClass[k].length).toFixed(2)),
+    backgroundColor:sKeys.map((_,i)=>COLORS[i%COLORS.length]+'cc'), borderColor:sKeys.map((_,i)=>COLORS[i%COLORS.length]), borderWidth:2,
+  }]);
+}
+
+// ── Raw Data Table ─────────────────────────────────────────────
+function renderTable() {
+  const { page, perPage, sort, dir, search } = state.table;
+  let rows = [...state.data.cattle_latest];
+  if (search) {
+    const q = search.toLowerCase();
+    rows = rows.filter(r => Object.values(r).some(v=>(v+'').toLowerCase().includes(q)));
+  }
+  rows.sort((a,b)=>{
+    let av=a[sort],bv=b[sort];
+    if(typeof av==='number') return dir==='asc'?av-bv:bv-av;
+    av=av||'';bv=bv||'';
+    return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+  });
+  const total = rows.length, totalPages = Math.ceil(total/perPage);
+  const slice = rows.slice((page-1)*perPage, page*perPage);
+
+  document.getElementById('tableBody').innerHTML = slice.map(r=>`
+    <tr>
+      <td>${r.date||'—'}</td><td>${r.market||'—'}</td><td>${r.commodity||'—'}</td>
+      <td>${r.class||'—'}</td><td>${r.weight_bracket||'—'}</td>
+      <td class="price-cell">${r.avg_price!=null?'$'+r.avg_price.toFixed(2):'—'}</td>
+      <td>${r.avg_weight!=null?r.avg_weight+' lbs':'—'}</td>
+      <td>${r.head_count!=null?r.head_count.toLocaleString():'—'}</td>
+    </tr>`).join('');
+
+  const start=(page-1)*perPage+1, end=Math.min(page*perPage,total);
+  let btns='';
+  for(let p=1;p<=totalPages;p++) btns+=`<button class="page-btn ${p===page?'active':''}" data-p="${p}">${p}</button>`;
+  document.getElementById('pagination').innerHTML =
+    `<span>Showing ${start}–${end} of ${total} rows</span><div class="pages">${btns}</div>`;
+  document.querySelectorAll('.page-btn').forEach(b=>b.addEventListener('click',()=>{state.table.page=+b.dataset.p;renderTable();}));
+}
+
+// ── Render All ─────────────────────────────────────────────────
+function renderAll() {
+  renderStatCards();
+  renderFeederTrend('cFeederTrend');
+  renderReceipts();
+  renderSlaughterTrend('cSlaughterTrend2');
+  renderReplaceTrend('cReplaceTrend2');
+  renderClassBar();
+  renderFeederTrend('cFeederTrend2');
+  renderReplaceTrend();
+  renderSlaughterTrend();
+  renderSpread();
+  renderMarketBars();
+  renderMarketTrends();
+  renderBracketTrends();
+  renderSheepCharts();
+  renderTable();
+}
+
+// ── Events ─────────────────────────────────────────────────────
+document.getElementById('mainNav').querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    renderAll();
+  });
+});
+
+document.getElementById('fDateRange').addEventListener('change', e => {
+  state.filters.weeks = +e.target.value; renderAll();
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  state.filters.weeks = 26;
+  document.getElementById('fDateRange').value = '26';
+  renderAll();
+});
+
+document.getElementById('tableSearch').addEventListener('input', e => {
+  state.table.search = e.target.value; state.table.page = 1; renderTable();
+});
+
+document.querySelectorAll('thead th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    state.table.dir = state.table.sort===col ? (state.table.dir==='asc'?'desc':'asc') : 'desc';
+    state.table.sort = col; state.table.page = 1;
+    document.querySelectorAll('thead th').forEach(h=>h.classList.remove('asc','desc'));
+    th.classList.add(state.table.dir);
+    renderTable();
+  });
+});
+
+// ── Boot ───────────────────────────────────────────────────────
+(async () => {
+  try {
+    await loadAll();
+    const m = state.data.manifest;
+    const isDemo = m.note?.includes('DEMO');
+    const updated = m.last_updated
+      ? new Date(m.last_updated).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : '—';
+    document.getElementById('headerMeta').innerHTML =
+      `Updated: <strong>${updated}</strong><br>Latest data: <strong>${m.latest_data_date||'—'}</strong>`;
+    if (isDemo) {
+      document.getElementById('demoBadgeSpan').innerHTML = '<span class="demo-badge">Demo</span>';
+      document.getElementById('demoNotice').style.display = 'block';
+    }
+    renderAll();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('errorBanner').style.display = 'block';
+  } finally {
+    document.getElementById('loadingOverlay').style.display = 'none';
+  }
+})();
+</script>
+</body>
+</html>
