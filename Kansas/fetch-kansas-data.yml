@@ -1,0 +1,40 @@
+name: Fetch USDA Kansas Livestock Data
+
+# Runs every weekday at 8 PM Central Time (01:00 UTC next day)
+# Also available to trigger manually from the GitHub Actions tab
+on:
+  schedule:
+    - cron: "15 1 * * 2-6"  # Tue–Sat 01:15 UTC  (Mon–Fri 8:15 PM CT, offset to avoid collision)
+  workflow_dispatch:          # Manual trigger button in GitHub UI
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch USDA Kansas data
+        env:
+          USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
+        run: |
+          cd Kansas
+          python fetch_data.py
+
+      - name: Commit updated data files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Kansas/data/
+          # Only commit if something actually changed
+          git diff --cached --quiet || git commit -m "chore: update USDA Kansas livestock data $(date -u '+%Y-%m-%d')"
+          git push
