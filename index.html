@@ -1,10 +1,12 @@
 <!DOCTYPE html>
+<!-- Texas Livestock Market Trends Dashboard — v2026-04-07 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Texas Livestock Market Trends</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -95,6 +97,17 @@
     .page-btn.active { background: var(--green-mid); color: white; border-color: var(--green-mid); }
     .page-btn:hover:not(.active) { background: var(--bg); }
 
+    /* Market report links */
+    .mkt-report-link { display:inline-flex; flex-direction:column; align-items:flex-start; padding:12px 16px; background:var(--bg); border:1px solid var(--border); border-radius:8px; text-decoration:none; color:var(--text); transition:border-color 0.2s, box-shadow 0.2s; min-width:160px; }
+    .mkt-report-link:hover { border-color:var(--green-mid); box-shadow:0 2px 8px rgba(45,106,53,0.15); }
+    .mkt-report-link .mrl-name { font-size:0.88rem; font-weight:700; color:var(--green-dark); margin-bottom:3px; }
+    .mkt-report-link .mrl-label { font-size:0.75rem; color:var(--text-muted); }
+    .mkt-report-link .mrl-arrow { font-size:0.78rem; color:var(--green-mid); margin-top:6px; font-weight:600; }
+
+    /* Export buttons */
+    .btn-export { padding: 7px 14px; background: var(--green-mid); color: white; border: none; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+    .btn-export:hover { background: var(--green-dark); }
+
     /* Loading */
     .loading-overlay { position: fixed; inset: 0; background: rgba(26,61,31,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; color: white; gap: 16px; }
     .spinner { width: 48px; height: 48px; border: 5px solid rgba(255,255,255,0.2); border-top-color: var(--gold-light); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -139,6 +152,18 @@
     .about-example-table td.match { color: #166534; font-weight: 600; }
     .about-example-table td.diff { color: var(--red); font-weight: 600; }
 
+    /* Sale Economics / Calculator */
+    .calc-inputs { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin:20px 0; padding:20px; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+    .calc-field { display:flex; flex-direction:column; gap:5px; }
+    .calc-field label { font-size:0.82rem; font-weight:600; }
+    .calc-field input, .calc-field select { padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.88rem; background:white; color:var(--text); }
+    .calc-field input:focus, .calc-field select:focus { outline:2px solid var(--green-light); border-color:var(--green-light); }
+    .calc-hint { font-size:0.72rem; color:var(--text-muted); line-height:1.3; }
+    .calc-result { margin-bottom:16px; padding:14px 18px; border-radius:8px; border:1px solid; font-size:0.88rem; line-height:1.6; }
+    .calc-result.positive { background:#f0fdf4; border-color:#86efac; color:#166534; }
+    .calc-result.negative { background:#fef2f2; border-color:#fca5a5; color:#991b1b; }
+    .econ-note { font-size:0.78rem; color:var(--text-muted); margin-top:10px; font-style:italic; }
+
     @media (max-width: 768px) {
       .about-grid { grid-template-columns: 1fr; }
     }
@@ -173,6 +198,7 @@
   <button data-tab="trends">Price Trends</button>
   <button data-tab="markets">Market Comparison</button>
   <button data-tab="weight">Weight Brackets</button>
+  <button data-tab="economics">Sale Economics</button>
   <button data-tab="sheep">Sheep &amp; Goats</button>
   <button data-tab="rawdata">Raw Data</button>
   <button data-tab="about">About This Data</button>
@@ -239,6 +265,11 @@
           <div class="chart-wrap"><canvas id="cReceipts"></canvas></div>
         </div>
       </div>
+      <div class="chart-card" style="margin-bottom:24px;">
+        <h2>Texas Auction Market Locations</h2>
+        <p class="chart-sub">Hover over a marker for auction details</p>
+        <div id="txMap" style="height:420px;border-radius:8px;overflow:hidden;margin-top:12px;"></div>
+      </div>
     </div>
 
     <!-- TRENDS -->
@@ -303,34 +334,115 @@
           <div class="chart-wrap tall"><canvas id="cMarketVolTrend"></canvas></div>
         </div>
       </div>
+
+      <!-- USDA Report Links -->
+      <div class="chart-card" style="margin-top:4px;">
+        <h2>USDA Official Market Reports</h2>
+        <p class="chart-sub">View the full weighted average report — including narrative summary, lot-level detail, and total receipts — directly on USDA MyMarketNews</p>
+        <div id="mktReportLinks" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;"></div>
+      </div>
     </div>
 
     <!-- WEIGHT BRACKETS -->
     <div class="tab-panel" id="tab-weight">
+      <div class="filter-row" style="margin-bottom:1rem;">
+        <label for="wgtMarket" style="font-weight:600;margin-right:.5rem;">Auction Market:</label>
+        <select id="wgtMarket" onchange="renderBracketTrends()" style="padding:.35rem .7rem;border-radius:6px;border:1px solid #ccc;font-size:.95rem;">
+          <option value="_all">Texas Combined</option>
+        </select>
+      </div>
       <div class="chart-grid">
         <div class="chart-card">
           <h2>Feeder Steers — Price by Weight Bracket</h2>
-          <p class="chart-sub">Top 8 weight brackets by volume ($/cwt over time)</p>
+          <p class="chart-sub">100-lb weight buckets · $/cwt over time</p>
           <div class="chart-wrap tall"><canvas id="cSteerBrackets"></canvas></div>
         </div>
         <div class="chart-card">
           <h2>Feeder Heifers — Price by Weight Bracket</h2>
-          <p class="chart-sub">Top 8 weight brackets by volume ($/cwt over time)</p>
+          <p class="chart-sub">100-lb weight buckets · $/cwt over time</p>
           <div class="chart-wrap tall"><canvas id="cHeiferBrackets"></canvas></div>
         </div>
       </div>
       <div class="chart-grid">
         <div class="chart-card">
           <h2>Steer Weight Brackets — Latest Week</h2>
-          <p class="chart-sub">Inverse price curve: lighter = higher $/cwt</p>
+          <p class="chart-sub">Lighter cattle = higher $/cwt · latest week snapshot</p>
           <div class="chart-wrap"><canvas id="cSteerBracketBar"></canvas></div>
         </div>
         <div class="chart-card">
           <h2>Heifer Weight Brackets — Latest Week</h2>
-          <p class="chart-sub">$/cwt by weight bracket, latest reporting week</p>
+          <p class="chart-sub">$/cwt by 100-lb bucket · latest reporting week</p>
           <div class="chart-wrap"><canvas id="cHeiferBracketBar"></canvas></div>
         </div>
       </div>
+      <div class="chart-card" style="margin-bottom:24px;">
+        <h2>Head Sold by Weight Bracket — Latest Week</h2>
+        <p class="chart-sub">Total steers + heifers combined · all Texas markets</p>
+        <div class="chart-wrap tall"><canvas id="cBracketBell"></canvas></div>
+      </div>
+    </div>
+
+    <!-- SALE ECONOMICS -->
+    <div class="tab-panel" id="tab-economics">
+
+      <!-- Revenue Per Head Charts -->
+      <div class="chart-grid" style="margin-bottom:24px;">
+        <div class="chart-card">
+          <h2>Estimated Revenue Per Head — Steers</h2>
+          <p class="chart-sub">$/cwt × bracket midpoint weight · latest reporting week</p>
+          <div class="chart-wrap tall"><canvas id="cEconSteerRev"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h2>Estimated Revenue Per Head — Heifers</h2>
+          <p class="chart-sub">$/cwt × bracket midpoint weight · latest reporting week</p>
+          <div class="chart-wrap tall"><canvas id="cEconHeiferRev"></canvas></div>
+        </div>
+      </div>
+
+      <!-- $/cwt vs $/head combo chart -->
+      <div class="chart-card" style="margin-bottom:24px;">
+        <h2>Price per CWT vs Revenue per Head — Steers · Latest Week</h2>
+        <p class="chart-sub">As weight increases, $/cwt falls — but total dollars received per head continues rising</p>
+        <div class="chart-wrap tall"><canvas id="cEconCombo"></canvas></div>
+        <p class="econ-note">Midpoint weights used per bracket: &lt;400→350 lbs · 400-499→450 lbs · 500-599→550 lbs · 600-699→650 lbs · 700-799→750 lbs · 800-899→850 lbs · 900+→950 lbs</p>
+      </div>
+
+      <!-- Calculator -->
+      <div class="chart-card" style="margin-bottom:24px;">
+        <h2>💰 Optimal Sell Weight Calculator</h2>
+        <p class="chart-sub">Enter your cost structure below — the chart updates live to show estimated profit at each weight bracket using current market prices</p>
+
+        <div class="calc-inputs">
+          <div class="calc-field">
+            <label for="calcClass">Animal Class</label>
+            <select id="calcClass" onchange="runCalc()">
+              <option value="steers">Steers</option>
+              <option value="heifers">Heifers</option>
+            </select>
+            <span class="calc-hint">Prices and revenue differ between classes</span>
+          </div>
+          <div class="calc-field">
+            <label for="calcPurchasePrice">Purchase Cost ($/head)</label>
+            <input type="number" id="calcPurchasePrice" value="850" min="0" max="5000" step="10" oninput="runCalc()" />
+            <span class="calc-hint">What you paid for the calf, including trucking</span>
+          </div>
+          <div class="calc-field">
+            <label for="calcStartWeight">Starting Weight (lbs)</label>
+            <input type="number" id="calcStartWeight" value="450" min="100" max="900" step="10" oninput="runCalc()" />
+            <span class="calc-hint">Animal weight at time of purchase</span>
+          </div>
+          <div class="calc-field">
+            <label for="calcCOG">Cost of Gain ($/lb)</label>
+            <input type="number" id="calcCOG" value="1.10" min="0.30" max="4.00" step="0.05" oninput="runCalc()" />
+            <span class="calc-hint">All-in cost per lb of gain (feed + yardage + labor)</span>
+          </div>
+        </div>
+
+        <div id="calcResult" class="calc-result positive"></div>
+        <div class="chart-wrap tall"><canvas id="cCalcProfit"></canvas></div>
+        <p class="econ-note">Revenue estimated using the most recent available USDA price for each bracket × the bracket's midpoint weight. Hover bars for full cost breakdown.</p>
+      </div>
+
     </div>
 
     <!-- SHEEP & GOATS -->
@@ -385,6 +497,7 @@
             <li>Superior Livestock Auction — <strong>Fort Worth, TX</strong></li>
             <li>LiveAg Auction — <strong>Fort Worth, TX</strong></li>
           </ul>
+          <p>While Texas has an estimated 60–80 active livestock auction markets operating on any given week, USDA reporting only covers a fraction of them. This is because USDA's Livestock, Poultry, and Grain Market News (LPGMN) program operates under <strong>Voluntary Price Reporting</strong> authority — auction markets choose whether to participate, and USDA must assign a trained federal market reporter to physically attend each sale, grade the cattle to official USDA standards, and record data in real time. The markets included in this dashboard were selected because they represent significant regional trading hubs and consistently produce enough volume to serve as reliable price benchmarks; many other Texas sale barns publish results through private reporting services or the Texas Department of Agriculture, but that data does not flow into the USDA MARS API.</p>
         </div>
 
         <!-- HOW THE API WORKS -->
@@ -543,7 +656,11 @@
       <div class="table-card">
         <div class="table-header">
           <h2>Latest Week — Cattle Auction Detail</h2>
-          <input type="text" class="table-search" id="tableSearch" placeholder="Search commodity, class…" />
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" class="table-search" id="tableSearch" placeholder="Search commodity, class…" />
+            <button class="btn-export" id="btnExportCsv" title="Export to Excel / CSV">⬇ CSV</button>
+            <button class="btn-export" id="btnExportTxt" title="Export to plain text">⬇ TXT</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table id="dataTable">
@@ -575,6 +692,22 @@
 
 const COLORS = ['#2d6a35','#c8991a','#2563a8','#b83232','#7c3abd','#e07b39','#1a7a7a','#a0522d'];
 
+// Weight bracket midpoints and upper bounds (lbs) for revenue & profit calculations
+const BRACKET_MIDPOINTS = {'<400':350,'400-499':450,'500-599':550,'600-699':650,'700-799':750,'800-899':850,'900+':950};
+const BRACKET_UPPER     = {'<400':400,'400-499':500,'500-599':600,'600-699':700,'700-799':800,'800-899':900,'900+':Infinity};
+const FIXED_BRACKETS    = ['<400','400-499','500-599','600-699','700-799','800-899','900+'];
+
+// USDA MyMarketNews slug IDs for each Texas auction market
+const MARKET_REPORT_SLUGS = {
+  'San Angelo':             2015,   // Producers Livestock Cattle Auction
+  'Dalhart':                1953,   // Cattlemen's Livestock Auction
+  'Tulia':                  1954,   // Tulia Livestock Auction
+  'Wildorado':              3365,   // Lonestar Stockyards
+  'Giddings':               3724,   // Giddings Livestock Auction
+  'Fort Worth (Superior)':  2713,   // Superior Livestock Auction
+  'Fort Worth (LiveAg)':    3892,   // LiveAg Auction
+};
+
 const state = {
   data: {},
   filters: { weeks: 26 },
@@ -586,8 +719,8 @@ const state = {
 async function loadAll() {
   const files = [
     'manifest','feeder_trend','replacement_trend','slaughter_trend',
-    'weight_bracket_steers','weight_bracket_heifers','class_breakdown',
-    'market_week_prices','cattle_latest','commodity_latest','sheep_compact'
+    'weight_bracket_steers','weight_bracket_heifers','weight_bracket_by_market',
+    'class_breakdown','market_week_prices','cattle_latest','commodity_latest','sheep_compact'
   ];
   const results = await Promise.all(
     files.map(f => fetch(`data/${f}.json?v=${Date.now()}`, {cache:'no-store'})
@@ -810,6 +943,25 @@ function getMarketCommodity() {
   return document.getElementById('mktCommodity')?.value || 'Feeder Cattle';
 }
 
+function renderMarketReportLinks() {
+  const container = document.getElementById('mktReportLinks');
+  if (!container) return;
+
+  // Build from known slug map; supplement with any markets in data not yet listed
+  const markets = state.data.manifest?.tx_markets || Object.keys(MARKET_REPORT_SLUGS);
+  container.innerHTML = markets.map(mkt => {
+    const slug = MARKET_REPORT_SLUGS[mkt];
+    if (!slug) return ''; // skip if no slug known
+    const url = `https://mymarketnews.ams.usda.gov/viewReport/${slug}`;
+    return `
+      <a class="mkt-report-link" href="${url}" target="_blank" rel="noopener">
+        <span class="mrl-name">${mkt}</span>
+        <span class="mrl-label">USDA Weighted Avg Report</span>
+        <span class="mrl-arrow">View on MyMarketNews →</span>
+      </a>`;
+  }).join('');
+}
+
 function onMarketCommodityChange() {
   renderMarketBars();
   renderMarketTrends();
@@ -873,12 +1025,36 @@ function renderMarketTrends() {
 }
 
 // ── Weight Brackets Tab ────────────────────────────────────────
+function populateWgtMarketDropdown() {
+  const sel = document.getElementById('wgtMarket');
+  if (sel.options.length > 1) return; // already populated
+  const markets = state.data.manifest?.tx_markets || Object.keys(state.data.weight_bracket_by_market || {}).filter(k=>k!=='_all');
+  markets.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    sel.appendChild(opt);
+  });
+}
+
 function renderBracketTrends() {
+  populateWgtMarketDropdown();
+
+  const selectedMarket = document.getElementById('wgtMarket')?.value || '_all';
+  const byMkt = state.data.weight_bracket_by_market;
+
+  // Collect latest-week heads for both classes to feed the bell curve
+  const bellHeads = {};
+
   ['Steers','Heifers'].forEach((cls,ci) => {
-    const key     = cls==='Steers' ? 'weight_bracket_steers' : 'weight_bracket_heifers';
     const canLine = cls==='Steers' ? 'cSteerBrackets' : 'cHeiferBrackets';
     const canBar  = cls==='Steers' ? 'cSteerBracketBar' : 'cHeiferBracketBar';
-    const { dates, keys, prices } = sliceDates(state.data[key]);
+
+    // Use per-market data if available, fall back to the standalone files
+    const mktData = byMkt?.[selectedMarket];
+    const matrix  = mktData ? mktData[cls.toLowerCase()] :
+                    state.data[cls==='Steers' ? 'weight_bracket_steers' : 'weight_bracket_heifers'];
+
+    const { dates, keys, prices, heads } = sliceDates(matrix);
 
     // Line chart: trend over time per bracket
     const datasets = keys.map((b,i) => ({
@@ -896,6 +1072,82 @@ function renderBracketTrends() {
       backgroundColor:keys.map((_,i)=>COLORS[i%COLORS.length]+'cc'),
       borderColor:keys.map((_,i)=>COLORS[i%COLORS.length]), borderWidth:2,
     }]);
+
+    // Accumulate latest-week head counts for bell curve
+    if (heads) {
+      keys.forEach(b => {
+        bellHeads[b] = (bellHeads[b] || 0) + (heads[b]?.[lastIdx] || 0);
+      });
+    }
+  });
+
+  // ── Bell curve: total head sold per bracket, latest week ──────
+  const mktLabel = selectedMarket === '_all' ? 'All Texas Markets' : selectedMarket;
+  renderBracketBell(bellHeads, mktLabel);
+}
+
+function renderBracketBell(bellHeads, mktLabel='All Texas Markets') {
+  destroyChart('cBracketBell');
+  const ctx = document.getElementById('cBracketBell')?.getContext('2d');
+  if (!ctx) return;
+
+  const FIXED = ['<400','400-499','500-599','600-699','700-799','800-899','900+'];
+  const labels = FIXED.map(b => b + ' lbs');
+  const data   = FIXED.map(b => bellHeads[b] || 0);
+  const total  = data.reduce((s,v) => s+v, 0);
+
+  // Build gradient from light green → dark green → light green (bell shape)
+  const grad = ctx.createLinearGradient(0, 0, ctx.canvas.offsetWidth || 600, 0);
+  grad.addColorStop(0,    '#4a9b55bb');
+  grad.addColorStop(0.35, '#2d6a35dd');
+  grad.addColorStop(0.5,  '#1a3d1fff');
+  grad.addColorStop(0.65, '#2d6a35dd');
+  grad.addColorStop(1,    '#4a9b55bb');
+
+  state.charts['cBracketBell'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Head Sold',
+        data,
+        backgroundColor: grad,
+        borderColor: '#1a3d1f',
+        borderWidth: 1.5,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: mktLabel,
+          font: { size: 11, weight: '600' },
+          color: '#6b6b6b',
+          padding: { bottom: 8 },
+        },
+        tooltip: {
+          callbacks: {
+            label: c => ` ${c.parsed.y.toLocaleString()} head`,
+            afterLabel: c => {
+              const pct = total > 0 ? ((c.parsed.y / total) * 100).toFixed(1) : 0;
+              return ` ${pct}% of weekly receipts`;
+            },
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 } } },
+        y: {
+          title: { display: true, text: 'Head Sold', font: { size: 10 } },
+          ticks: { font: { size: 9 }, callback: v => v.toLocaleString() },
+          beginAtZero: true,
+        }
+      }
+    }
   });
 }
 
@@ -981,6 +1233,342 @@ function renderTable() {
   document.querySelectorAll('.page-btn').forEach(b=>b.addEventListener('click',()=>{state.table.page=+b.dataset.p;renderTable();}));
 }
 
+// ── Export Helpers ─────────────────────────────────────────────
+function getFilteredRows() {
+  const { sort, dir, search } = state.table;
+  let rows = [...state.data.cattle_latest];
+  if (search) {
+    const q = search.toLowerCase();
+    rows = rows.filter(r => Object.values(r).some(v=>(v+'').toLowerCase().includes(q)));
+  }
+  rows.sort((a,b)=>{
+    let av=a[sort],bv=b[sort];
+    if(typeof av==='number') return dir==='asc'?av-bv:bv-av;
+    av=av||'';bv=bv||'';
+    return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+  });
+  return rows;
+}
+
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function exportCsv() {
+  const rows = getFilteredRows();
+  const headers = ['Date','Market','Commodity','Class','Weight (lbs)','Avg $/cwt','Avg Weight (lbs)','Head Count'];
+  const escape  = v => `"${(v??'').toString().replace(/"/g,'""')}"`;
+  const lines   = [headers.map(escape).join(',')];
+  rows.forEach(r => lines.push([
+    escape(r.date), escape(r.market), escape(r.commodity), escape(r.class),
+    escape(r.weight_bracket),
+    escape(r.avg_price!=null ? r.avg_price.toFixed(2) : ''),
+    escape(r.avg_weight!=null ? r.avg_weight : ''),
+    escape(r.head_count!=null ? r.head_count : ''),
+  ].join(',')));
+  const date = new Date().toISOString().slice(0,10);
+  downloadFile(`cattle-market-data-${date}.csv`, '\uFEFF' + lines.join('\r\n'), 'text/csv;charset=utf-8;');
+}
+
+function exportTxt() {
+  const rows = getFilteredRows();
+  const cols = [
+    { key: 'date',           label: 'Date',            width: 12 },
+    { key: 'market',         label: 'Market',          width: 24 },
+    { key: 'commodity',      label: 'Commodity',       width: 20 },
+    { key: 'class',          label: 'Class',           width: 18 },
+    { key: 'weight_bracket', label: 'Weight (lbs)',    width: 14 },
+    { key: 'avg_price',      label: 'Avg $/cwt',       width: 12 },
+    { key: 'avg_weight',     label: 'Avg Wt (lbs)',    width: 14 },
+    { key: 'head_count',     label: 'Head Count',      width: 12 },
+  ];
+  const pad = (s, w) => (s+'').padEnd(w).slice(0, w);
+  const sep = cols.map(c => '-'.repeat(c.width)).join('  ');
+  const header = cols.map(c => pad(c.label, c.width)).join('  ');
+  const lines  = [
+    'Texas Livestock Market Data',
+    `Exported: ${new Date().toLocaleString()}`,
+    '',
+    header,
+    sep,
+  ];
+  rows.forEach(r => lines.push(cols.map(c => {
+    let v = r[c.key];
+    if (c.key === 'avg_price')  v = v!=null ? '$'+v.toFixed(2) : '—';
+    else if (c.key === 'avg_weight') v = v!=null ? v+' lbs' : '—';
+    else if (c.key === 'head_count') v = v!=null ? v.toLocaleString() : '—';
+    else v = v ?? '—';
+    return pad(v, c.width);
+  }).join('  ')));
+  const date = new Date().toISOString().slice(0,10);
+  downloadFile(`cattle-market-data-${date}.txt`, lines.join('\r\n'), 'text/plain;charset=utf-8;');
+}
+
+// ── Sale Economics Tab ─────────────────────────────────────────
+function latestBracketPrice(matrix, bracket) {
+  const prices = matrix?.prices?.[bracket];
+  if (!prices) return null;
+  for (let i = prices.length - 1; i >= 0; i--) {
+    if (prices[i] != null && prices[i] > 0) return prices[i];
+  }
+  return null;
+}
+
+function renderEconomicsTab() {
+  const steersM  = state.data.weight_bracket_steers;
+  const heiferM  = state.data.weight_bracket_heifers;
+  if (!steersM || !heiferM) return;
+
+  const labels = FIXED_BRACKETS.map(b => b + ' lbs');
+
+  // ── Revenue per head charts ────────────────────────────────
+  const revColors = FIXED_BRACKETS.map((_,i) => COLORS[i%COLORS.length]);
+
+  ['Steers','Heifers'].forEach(cls => {
+    const canId  = cls === 'Steers' ? 'cEconSteerRev' : 'cEconHeiferRev';
+    const matrix = cls === 'Steers' ? steersM : heiferM;
+    const rev    = FIXED_BRACKETS.map(b => {
+      const p = latestBracketPrice(matrix, b);
+      return p != null ? +(p * BRACKET_MIDPOINTS[b] / 100).toFixed(2) : null;
+    });
+    destroyChart(canId);
+    const ctx = document.getElementById(canId)?.getContext('2d');
+    if (!ctx) return;
+    state.charts[canId] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: `${cls} — Est. Revenue $/head`,
+          data: rev,
+          backgroundColor: revColors.map(c => c + 'bb'),
+          borderColor: revColors,
+          borderWidth: 2,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: c => {
+                const b  = FIXED_BRACKETS[c.dataIndex];
+                const p  = latestBracketPrice(matrix, b);
+                return [
+                  ` Revenue: $${c.parsed.y?.toFixed(2)}/head`,
+                  ` Price: $${p?.toFixed(2)}/cwt`,
+                  ` Midpoint weight: ${BRACKET_MIDPOINTS[b]} lbs`,
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10 } } },
+          y: {
+            title: { display: true, text: 'Est. $ per head received', font: { size: 10 } },
+            ticks: { callback: v => '$' + v.toLocaleString() },
+            beginAtZero: false,
+          }
+        }
+      }
+    });
+  });
+
+  // ── Combo chart: $/cwt line + $/head bars ─────────────────
+  destroyChart('cEconCombo');
+  const comboCtx = document.getElementById('cEconCombo')?.getContext('2d');
+  if (comboCtx) {
+    const steerPrices = FIXED_BRACKETS.map(b => latestBracketPrice(steersM, b));
+    const steerRev    = FIXED_BRACKETS.map(b => {
+      const p = latestBracketPrice(steersM, b);
+      return p != null ? +(p * BRACKET_MIDPOINTS[b] / 100).toFixed(2) : null;
+    });
+    state.charts['cEconCombo'] = new Chart(comboCtx, {
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Revenue $/head',
+            data: steerRev,
+            backgroundColor: '#c8991a55',
+            borderColor: '#c8991a',
+            borderWidth: 2,
+            borderRadius: 4,
+            yAxisID: 'yHead',
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: '$/cwt (Steers)',
+            data: steerPrices,
+            borderColor: '#2d6a35',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            tension: 0.3,
+            pointRadius: 5,
+            pointBackgroundColor: '#2d6a35',
+            yAxisID: 'yCwt',
+            order: 1,
+          },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 11 } } },
+          tooltip: {
+            mode: 'index', intersect: false,
+            callbacks: {
+              label: c => c.dataset.yAxisID === 'yCwt'
+                ? ` ${c.dataset.label}: $${c.parsed.y?.toFixed(2)}/cwt`
+                : ` ${c.dataset.label}: $${c.parsed.y?.toFixed(2)}/head`
+            }
+          }
+        },
+        scales: {
+          yCwt: {
+            type: 'linear', position: 'left',
+            title: { display: true, text: '$/cwt', font: { size: 10 } },
+            ticks: { callback: v => '$' + v.toFixed(0) },
+          },
+          yHead: {
+            type: 'linear', position: 'right',
+            title: { display: true, text: '$/head received', font: { size: 10 } },
+            ticks: { callback: v => '$' + v.toFixed(0) },
+            grid: { drawOnChartArea: false },
+          }
+        }
+      }
+    });
+  }
+
+  // Run calculator with default inputs on first load
+  runCalc();
+}
+
+function runCalc() {
+  const clsEl = document.getElementById('calcClass');
+  const ppEl  = document.getElementById('calcPurchasePrice');
+  const swEl  = document.getElementById('calcStartWeight');
+  const cogEl = document.getElementById('calcCOG');
+  if (!clsEl || !ppEl || !swEl || !cogEl) return;
+
+  const cls = clsEl.value;
+  const pp  = parseFloat(ppEl.value) || 0;
+  const sw  = parseFloat(swEl.value) || 0;
+  const cog = parseFloat(cogEl.value) || 0;
+
+  const matrix = cls === 'steers'
+    ? state.data.weight_bracket_steers
+    : state.data.weight_bracket_heifers;
+  if (!matrix) return;
+
+  // Build results for each bracket
+  const results = FIXED_BRACKETS.map(b => {
+    const midpoint  = BRACKET_MIDPOINTS[b];
+    // Skip brackets whose upper bound is already below the starting weight
+    if (BRACKET_UPPER[b] <= sw && b !== '900+') {
+      return { bracket: b, midpoint, gain: null, totalCost: null, revenue: null, profit: null, skipped: true };
+    }
+    const gain      = Math.max(0, midpoint - sw);
+    const totalCost = +(pp + gain * cog).toFixed(2);
+    const price     = latestBracketPrice(matrix, b);
+    const revenue   = price != null ? +(price * midpoint / 100).toFixed(2) : null;
+    const profit    = revenue != null ? +(revenue - totalCost).toFixed(2) : null;
+    return { bracket: b, midpoint, gain, totalCost, revenue, profit, skipped: false };
+  });
+
+  // Find best bracket (highest profit, excluding skipped brackets)
+  let bestIdx = 0, bestProfit = -Infinity;
+  results.forEach((r, i) => {
+    if (!r.skipped && r.profit != null && r.profit > bestProfit) { bestProfit = r.profit; bestIdx = i; }
+  });
+
+  // Result summary card
+  const resultEl = document.getElementById('calcResult');
+  if (resultEl) {
+    const best = results[bestIdx];
+    if (bestProfit >= 0) {
+      resultEl.className = 'calc-result positive';
+      resultEl.innerHTML = `<strong>📈 Sweet spot: ${best.bracket} lbs bracket</strong> — Estimated profit of <strong>$${bestProfit.toFixed(2)}/head</strong> selling at ~${best.midpoint} lbs avg weight.<br>
+        Total investment at that weight: <strong>$${best.totalCost.toFixed(2)}/head</strong> &nbsp;·&nbsp; Estimated revenue: <strong>$${best.revenue?.toFixed(2)}/head</strong> &nbsp;·&nbsp; Gain needed from start: <strong>${best.gain} lbs</strong>`;
+    } else {
+      resultEl.className = 'calc-result negative';
+      const minLoss = Math.min(...results.filter(r => r.profit != null).map(r => Math.abs(r.profit)));
+      resultEl.innerHTML = `<strong>⚠️ No profitable bracket at current costs</strong> — Best scenario is the <strong>${best.bracket} lbs</strong> bracket with an estimated loss of <strong>$${Math.abs(bestProfit).toFixed(2)}/head</strong>.
+        Reduce your cost of gain or purchase price to reach breakeven. Minimum loss across all brackets: <strong>$${minLoss.toFixed(2)}/head</strong>.`;
+    }
+  }
+
+  // Profit bar chart
+  destroyChart('cCalcProfit');
+  const ctx = document.getElementById('cCalcProfit')?.getContext('2d');
+  if (!ctx) return;
+
+  const profits    = results.map(r => r.skipped ? null : r.profit);
+  const bgColors   = results.map((r, i) => r.skipped ? '#cccccc44' : i === bestIdx ? '#1a3d1fdd' : (r.profit ?? -1) >= 0 ? '#2d6a3566' : '#b8323255');
+  const bdrColors  = results.map((r, i) => r.skipped ? '#cccccc'   : i === bestIdx ? '#1a3d1f'   : (r.profit ?? -1) >= 0 ? '#2d6a35'   : '#b83232');
+
+  state.charts['cCalcProfit'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: FIXED_BRACKETS.map(b => b + ' lbs'),
+      datasets: [{
+        label: 'Est. Profit ($/head)',
+        data: profits,
+        backgroundColor: bgColors,
+        borderColor: bdrColors,
+        borderWidth: 2,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => {
+              const i = items[0].dataIndex;
+              return `${FIXED_BRACKETS[i]} lbs bracket${i === bestIdx ? ' ⭐ Best' : ''}`;
+            },
+            label: c => {
+              const r = results[c.dataIndex];
+              if (r.skipped) return ' Below your starting weight — not a valid sell target';
+              return [
+                ` Profit/loss: ${c.parsed.y >= 0 ? '+' : ''}$${c.parsed.y?.toFixed(2)}/head`,
+                ` Revenue:     $${r.revenue?.toFixed(2)}/head`,
+                ` Total cost:  $${r.totalCost?.toFixed(2)}/head`,
+                ` Gain needed: ${r.gain} lbs (from ${sw} lbs start)`,
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 } } },
+        y: {
+          title: { display: true, text: 'Est. profit per head ($)', font: { size: 10 } },
+          ticks: { callback: v => (v >= 0 ? '+' : '') + '$' + Math.abs(v).toFixed(0) },
+          grid: {
+            color: ctx2 => ctx2.tick?.value === 0 ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.06)',
+            lineWidth: ctx2 => ctx2.tick?.value === 0 ? 2 : 1,
+          },
+        }
+      }
+    }
+  });
+}
+
 // ── Render All ─────────────────────────────────────────────────
 function renderAll() {
   renderStatCards();
@@ -996,7 +1584,9 @@ function renderAll() {
   renderMarketBars();
   renderMarketTrends();
   renderBracketTrends();
+  renderEconomicsTab();
   renderSheepCharts();
+  renderMarketReportLinks();
   renderTable();
 }
 
@@ -1024,6 +1614,9 @@ document.getElementById('btnReset').addEventListener('click', () => {
 document.getElementById('tableSearch').addEventListener('input', e => {
   state.table.search = e.target.value; state.table.page = 1; renderTable();
 });
+
+document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
+document.getElementById('btnExportTxt').addEventListener('click', exportTxt);
 
 document.querySelectorAll('thead th[data-col]').forEach(th => {
   th.addEventListener('click', () => {
@@ -1060,5 +1653,135 @@ document.querySelectorAll('thead th[data-col]').forEach(th => {
   }
 })();
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ── Texas Auction Market Map ────────────────────────────────────
+const AUCTION_SITES = [
+  {
+    name:    'Producers Livestock Cattle Auction',
+    short:   'San Angelo',
+    lat:     31.481,
+    lng:     -100.422,
+    address: '1242 N Bell St, San Angelo, TX 76903',
+    phone:   '(325) 653-3371',
+    url:     'https://www.producerslivestock.com',
+  },
+  {
+    name:    'Cattlemen\'s Livestock Auction',
+    short:   'Dalhart',
+    lat:     36.062,
+    lng:     -102.517,
+    address: '901 Liberal St, Dalhart, TX 79022',
+    phone:   '(806) 244-4511',
+    url:     'https://www.cattlemenslivestock.com',
+  },
+  {
+    name:    'Tulia Livestock Auction',
+    short:   'Tulia',
+    lat:     34.535,
+    lng:     -101.756,
+    address: '311 SW 2nd St, Tulia, TX 79088',
+    phone:   '(806) 995-3316',
+    url:     'https://www.tulialivestock.com',
+  },
+  {
+    name:    'Lonestar Stockyards',
+    short:   'Wildorado',
+    lat:     35.176,
+    lng:     -102.202,
+    address: '4101 FM 809, Wildorado, TX 79098',
+    phone:   '(806) 426-3411',
+    url:     'https://www.lonestarstockyards.com',
+  },
+  {
+    name:    'Giddings Livestock Auction',
+    short:   'Giddings',
+    lat:     30.183,
+    lng:     -96.935,
+    address: '1175 US-290, Giddings, TX 78942',
+    phone:   '(979) 542-2574',
+    url:     'https://www.giddingslivestockauction.com',
+  },
+];
+
+(function initMap() {
+  const map = L.map('txMap', {
+    center: [31.5, -99.5],
+    zoom: 6,
+    zoomControl: true,
+    scrollWheelZoom: false,   // prevent accidental zoom while scrolling the page
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 18,
+  }).addTo(map);
+
+  // Custom green circle marker styled to match dashboard theme
+  function makeIcon() {
+    return L.divIcon({
+      className: '',
+      html: `<div style="
+        width:18px;height:18px;
+        background:#2d6a35;
+        border:3px solid #f0bf40;
+        border-radius:50%;
+        box-shadow:0 2px 6px rgba(0,0,0,0.35);
+        cursor:pointer;
+      "></div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+      tooltipAnchor: [12, 0],
+    });
+  }
+
+  AUCTION_SITES.forEach(site => {
+    const marker = L.marker([site.lat, site.lng], { icon: makeIcon() }).addTo(map);
+
+    const tip = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-width:220px;line-height:1.5;">
+        <div style="font-size:1rem;font-weight:700;color:#1a3d1f;margin-bottom:4px;">${site.name}</div>
+        <div style="font-size:0.82rem;color:#444;margin-bottom:2px;">📍 ${site.address}</div>
+        <div style="font-size:0.82rem;color:#444;margin-bottom:6px;">📞 ${site.phone}</div>
+        <a href="${site.url}" target="_blank" rel="noopener"
+           style="font-size:0.82rem;font-weight:600;color:#2d6a35;text-decoration:none;">
+          🌐 Visit Website →
+        </a>
+      </div>`;
+
+    marker.bindTooltip(tip, {
+      permanent: false,
+      sticky: false,
+      direction: 'top',
+      offset: [0, -6],
+      opacity: 1,
+      className: 'auction-tooltip',
+    });
+
+    // Open tooltip on hover, keep it open so the link is clickable
+    marker.on('mouseover', function() { this.openTooltip(); });
+    marker.on('mouseout',  function(e) {
+      // Delay close slightly so mouse can reach the tooltip link
+      const self = this;
+      setTimeout(() => { if (!self._tooltipHovered) self.closeTooltip(); }, 300);
+    });
+  });
+})();
+</script>
+
+<style>
+  /* Leaflet tooltip override to match dashboard card style */
+  .auction-tooltip {
+    background: white;
+    border: 1px solid #ddd6c8;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    padding: 12px 14px;
+    pointer-events: auto !important;  /* allow clicking the link inside */
+  }
+  .auction-tooltip::before { border-top-color: #ddd6c8 !important; }
+  .leaflet-tooltip-top.auction-tooltip::before { border-top-color: #ddd6c8 !important; }
+</style>
 </body>
 </html>
