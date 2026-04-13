@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<!-- Cattle Market Trends — Hub Landing Page -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cattle Market Trends — Select a State</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green-dark: #1a3d1f;
+      --green-mid:  #2d6a35;
+      --green-light:#4a9b55;
+      --gold:       #c8991a;
+      --gold-light: #f0bf40;
+      --bg:         #f4f1eb;
+      --card:       #ffffff;
+      --text:       #1e1e1e;
+      --text-muted: #6b6b6b;
+      --border:     #ddd6c8;
+      --radius:     14px;
+      --shadow:     0 4px 24px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+      color: white;
+      padding: 28px 32px;
+      text-align: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .header-icon { font-size: 2.6rem; margin-bottom: 10px; }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    header p {
+      margin-top: 8px;
+      font-size: 0.92rem;
+      opacity: 0.82;
+      line-height: 1.5;
+    }
+    .header-badge {
+      display: inline-block;
+      margin-top: 12px;
+      background: rgba(200,153,26,0.25);
+      border: 1px solid var(--gold-light);
+      color: var(--gold-light);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ── Main content ── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      text-align: center;
+    }
+
+    /* ── State cards ── */
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 28px;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .state-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 2px solid transparent;
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .state-card:hover {
+      border-color: var(--green-mid);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(45,106,53,0.18);
+    }
+
+    .card-banner {
+      background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+      padding: 28px 24px 22px;
+      color: white;
+      text-align: center;
+      position: relative;
+    }
+    .card-flag { font-size: 3.2rem; margin-bottom: 6px; }
+    .card-state {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+    .card-tagline {
+      font-size: 0.78rem;
+      opacity: 0.78;
+      margin-top: 4px;
+    }
+    .card-arrow {
+      position: absolute;
+      top: 50%;
+      right: 18px;
+      transform: translateY(-50%);
+      font-size: 1.4rem;
+      opacity: 0.5;
+      transition: opacity 0.2s, right 0.2s;
+    }
+    .state-card:hover .card-arrow {
+      opacity: 1;
+      right: 14px;
+    }
+
+    .card-body {
+      padding: 20px 24px 24px;
+      flex: 1;
+    }
+    .card-markets {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .market-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px;
+    }
+    .market-list li {
+      font-size: 0.88rem;
+      color: var(--text);
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .market-list li:last-child { border-bottom: none; }
+    .market-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green-light);
+      flex-shrink: 0;
+    }
+
+    .card-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .tab-chip {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: #f0fdf4;
+      color: var(--green-mid);
+      border: 1px solid #bbf7d0;
+    }
+
+    .card-cta {
+      display: block;
+      margin: 20px 24px 24px;
+      padding: 12px;
+      background: var(--green-mid);
+      color: white;
+      text-align: center;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .state-card:hover .card-cta { background: var(--green-dark); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 20px 24px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--green-mid); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.4rem; }
+      .state-grid { grid-template-columns: 1fr; max-width: 360px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">🐄</div>
+  <h1>Cattle Market Trends</h1>
+  <p>USDA Market News · Feeder, Slaughter &amp; Replacement Cattle · Updated Daily</p>
+  <span class="header-badge">Powered by USDA AMS MARS API</span>
+</header>
+
+<main>
+  <p class="subtitle">Select a state to view live auction market data</p>
+
+  <div class="state-grid">
+
+    <!-- Texas -->
+    <a class="state-card" href="Texas/">
+      <div class="card-banner">
+        <div class="card-flag">🤠</div>
+        <div class="card-state">Texas</div>
+        <div class="card-tagline">West Texas · Hill Country · Panhandle</div>
+        <span class="card-arrow">→</span>
+      </div>
+      <div class="card-body">
+        <div class="card-markets">Auction Markets</div>
+        <ul class="market-list">
+          <li><span class="market-dot"></span>Producers Livestock — San Angelo</li>
+          <li><span class="market-dot"></span>Texas Cattle Exchange — Dalhart</li>
+          <li><span class="market-dot"></span>Tulia Livestock Auction — Tulia</li>
+          <li><span class="market-dot"></span>Lonestar Stockyards — Wildorado</li>
+          <li><span class="market-dot"></span>Giddings Livestock Commission — Giddings</li>
+        </ul>
+        <div class="card-tabs">
+          <span class="tab-chip">Feeder Cattle</span>
+          <span class="tab-chip">Slaughter</span>
+          <span class="tab-chip">Replacement</span>
+          <span class="tab-chip">Sheep &amp; Goats</span>
+          <span class="tab-chip">Sale Economics</span>
+        </div>
+      </div>
+      <span class="card-cta">View Texas Dashboard →</span>
+    </a>
+
+    <!-- Kansas -->
+    <a class="state-card" href="Kansas/">
+      <div class="card-banner">
+        <div class="card-flag">🌾</div>
+        <div class="card-state">Kansas</div>
+        <div class="card-tagline">Southwest · South Central · Central Kansas</div>
+        <span class="card-arrow">→</span>
+      </div>
+      <div class="card-body">
+        <div class="card-markets">Auction Markets</div>
+        <ul class="market-list">
+          <li><span class="market-dot"></span>Winter Livestock — Dodge City</li>
+          <li><span class="market-dot"></span>Winter Livestock — Pratt</li>
+          <li><span class="market-dot"></span>Farmers &amp; Ranchers — Salina</li>
+        </ul>
+        <div class="card-tabs">
+          <span class="tab-chip">Feeder Cattle</span>
+          <span class="tab-chip">Slaughter</span>
+          <span class="tab-chip">Replacement</span>
+          <span class="tab-chip">Sale Economics</span>
+        </div>
+      </div>
+      <span class="card-cta">View Kansas Dashboard →</span>
+    </a>
+
+  </div>
+</main>
+
+<footer>
+  Data sourced from <a href="https://mymarketnews.ams.usda.gov" target="_blank" rel="noopener">USDA AMS Market News</a> ·
+  Updated weekday evenings via GitHub Actions ·
+  <a href="https://marsapi.ams.usda.gov" target="_blank" rel="noopener">MARS API</a>
+</footer>
+
+</body>
+</html>
